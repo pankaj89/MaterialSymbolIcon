@@ -1,0 +1,49 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <id>com.master.materialsymbol.MaterialSymbolIcons</id>
+    <name>MaterialSymbolIcon</name>
+    <vendor url="https://pankaj89.vercel.app/">Pankaj Sharma</vendor>
+
+    <description><![CDATA[
+        A unified tool to download, convert, and manage icons (Google Material Symbols, Apple SF Symbols, and SVG images)
+        for Jetpack Compose <code>ImageVector</code> and Android XML Drawables.<br>
+        Features:
+        <ul>
+            <li><b>Material Symbols:</b> Direct URL download, vector conversion, and auto-naming.</li>
+            <li><b>SF Symbols:</b> Paste raw SVG copied from Apple SF Symbols app with automatic cleanup of Apple-specific tags.</li>
+            <li><b>SVG Images:</b> Browse or drag-and-drop local SVG files.</li>
+            <li><b>Jetpack Compose & XML Drawables:</b> Instant generation of Compose <code>ImageVector</code> Kotlin code and Android Vector Drawables.</li>
+            <li><b>Central Registry:</b> Automatically appends imported icons to your project's <code>AppIcons.kt</code> using IntelliJ Kotlin PSI.</li>
+        </ul>
+    ]]></description>
+
+    <!-- Compatibility requirements -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <resource-bundle>messages.MyMessageBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceImplementation="com.master.materialsymbol.settings.IconImporterSettings"/>
+
+        <notificationGroup id="MaterialSymbolIcon" displayType="BALLOON" isLogByDefault="true"/>
+
+        <toolWindow id="MaterialSymbolIcon" factoryClass="com.master.materialsymbol.MyToolWindowFactory"
+                    icon="AllIcons.Toolwindows.ToolWindowPalette"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <actions>
+        <action id="MaterialSymbolIcon.OpenDialog"
+                class="com.master.materialsymbol.actions.OpenMaterialSymbolIconAction"
+                text="Material Symbol &amp; Icon Importer..."
+                description="Import Material Symbols, SF Symbols, and SVG icons for Compose and Android XML"
+                icon="AllIcons.Actions.Download">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="NewGroup" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -1,0 +1,7 @@
+.gradle
+.idea
+.intellijPlatform
+.kotlin
+build
+.DS_Store
+*.hprof
