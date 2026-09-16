@@ -2,6 +2,13 @@
 
 # MaterialSymbolIcons Changelog
 
+## [1.0.1] - 2026-09-16
+
+### Changed
+- Increased dialog dimensions (1140x660) and expanded right content panel width (900px) to prevent text wrapping.
+- Switched key capabilities layout to BorderLayout for optimal line length and visual alignment.
+- Updated official plugin logo and metadata.
+
 ## [1.0.0] - 2026-09-16
 
 ### Added
