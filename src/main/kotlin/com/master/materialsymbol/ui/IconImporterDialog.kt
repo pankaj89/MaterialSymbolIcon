@@ -67,7 +67,7 @@ class IconImporterDialog(private val project: Project) : DialogWrapper(project, 
         cardsContainer.add(aboutUsPanel, "CARD_ABOUT_US")
 
         // Splitter
-        val splitter = JBSplitter(false, 0.25f).apply {
+        val splitter = JBSplitter(false, 0.21f).apply {
             setHonorComponentsMinimumSize(true)
             firstComponent = JBScrollPane(navList).apply {
                 minimumSize = Dimension(JBUI.scale(210), 0)
@@ -90,8 +90,8 @@ class IconImporterDialog(private val project: Project) : DialogWrapper(project, 
         }
 
         return JBPanel<JBPanel<*>>(BorderLayout()).apply {
-            preferredSize = Dimension(JBUI.scale(980), JBUI.scale(640))
-            minimumSize = Dimension(JBUI.scale(850), JBUI.scale(520))
+            preferredSize = Dimension(JBUI.scale(1140), JBUI.scale(660))
+            minimumSize = Dimension(JBUI.scale(980), JBUI.scale(540))
             add(splitter, BorderLayout.CENTER)
         }
     }

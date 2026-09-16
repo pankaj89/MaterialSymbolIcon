@@ -155,12 +155,13 @@ class AboutUsPanel : JBPanel<AboutUsPanel>(BorderLayout()) {
                 )
 
                 for (feature in features) {
-                    val row = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.LEFT, 8, 2)).apply {
+                    val row = JBPanel<JBPanel<*>>(BorderLayout(10, 0)).apply {
                         alignmentX = Component.LEFT_ALIGNMENT
-                        add(JBLabel(feature.first))
+                        border = JBUI.Borders.empty(3, 0)
+                        add(JBLabel(feature.first), BorderLayout.WEST)
                         add(JBLabel(feature.second).apply {
                             font = font.deriveFont(Font.PLAIN, 13f)
-                        })
+                        }, BorderLayout.CENTER)
                     }
                     add(row)
                 }
