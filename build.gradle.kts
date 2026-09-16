@@ -24,3 +24,16 @@ dependencies {
 kotlin {
     jvmToolchain(21)
 }
+
+intellijPlatform {
+    pluginConfiguration {
+        version = providers.gradleProperty("version")
+        ideaVersion {
+            sinceBuild = "242"
+            untilBuild = provider { null }
+        }
+    }
+    publishing {
+        token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
+    }
+}
