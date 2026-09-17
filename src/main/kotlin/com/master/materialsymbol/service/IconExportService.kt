@@ -39,17 +39,48 @@ object IconExportService {
         var warningOrError: String? = null
 
         try {
-            // 1. Convert SVG to Vector Drawable XML
-            val (vectorXml, warning) = SvgConversionService.convertSvgToVectorXml(request.svgContent)
-            if (warning != null) {
-                warningOrError = warning
+            val isKotlin = ComposeGeneratorService.isKotlinComposeSource(request.svgContent)
+            var vectorXml = ""
+            val composeCode: String
+            val vectorPropName: String
+
+            if (isKotlin) {
+                // Preserve the downloaded Kotlin file as it is, adjusting package to composePackage
+                composeCode = ComposeGeneratorService.prepareKotlinSource(request.svgContent, composePackage)
+                vectorPropName = ComposeGeneratorService.extractVectorPropertyName(composeCode) ?: composeName
+
+                // If XML Drawable was also requested, attempt to fetch fallback SVG for XML generation
+                if (request.destinationType.isXml) {
+                    val svgFallback = MaterialSymbolDownloaderService.downloadSvgForIconName(request.rawIconName)
+                    if (svgFallback != null) {
+                        val (xml, warning) = SvgConversionService.convertSvgToVectorXml(svgFallback)
+                        vectorXml = xml
+                        if (warning != null) warningOrError = warning
+                    } else {
+                        warningOrError = "XML Drawable could not be created from Kotlin source URL"
+                    }
+                }
+            } else {
+                // 1. Convert SVG to Vector Drawable XML
+                val (xml, warning) = SvgConversionService.convertSvgToVectorXml(request.svgContent)
+                vectorXml = xml
+                if (warning != null) {
+                    warningOrError = warning
+                }
+
+                composeCode = ComposeGeneratorService.generateComposeSource(
+                    vectorXml = vectorXml,
+                    composeName = composeName,
+                    packageName = composePackage
+                )
+                vectorPropName = composeName
             }
 
             WriteCommandAction.runWriteCommandAction(project, "Export Icon Files", null, Runnable {
                 val lfs = LocalFileSystem.getInstance()
 
                 // Save XML Drawable if requested
-                if (request.destinationType.isXml) {
+                if (request.destinationType.isXml && vectorXml.isNotBlank()) {
                     val dirFile = File(drawableDir)
                     if (!dirFile.exists()) dirFile.mkdirs()
 
@@ -66,12 +97,6 @@ object IconExportService {
                     val dirFile = File(composeDir)
                     if (!dirFile.exists()) dirFile.mkdirs()
 
-                    val composeCode = ComposeGeneratorService.generateComposeSource(
-                        vectorXml = vectorXml,
-                        composeName = composeName,
-                        packageName = composePackage
-                    )
-
                     val targetFile = File(dirFile, "$composeName.kt")
                     targetFile.writeText(composeCode, Charsets.UTF_8)
                     exportedComposePath = targetFile.absolutePath
@@ -87,7 +112,7 @@ object IconExportService {
                     project = project,
                     appIconsFilePath = appIconsPath,
                     composeIconName = composeName,
-                    vectorPropertyName = composeName,
+                    vectorPropertyName = vectorPropName,
                     vectorPackageName = composePackage
                 )
             }

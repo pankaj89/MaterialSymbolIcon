@@ -352,4 +352,36 @@ private var $backingVar: ImageVector? = null
         val raw = extractAttribute(xml, attrName) ?: return null
         return raw.replace(Regex("[^0-9.]"), "").toFloatOrNull()
     }
+
+    /**
+     * Checks if the content is already a Kotlin Jetpack Compose ImageVector source file.
+     */
+    fun isKotlinComposeSource(content: String): Boolean {
+        val trimmed = content.trim()
+        if (trimmed.startsWith("<")) return false
+        return trimmed.contains("ImageVector") && (trimmed.contains("val ") || trimmed.contains("@Suppress"))
+    }
+
+    /**
+     * Extracts the ImageVector variable name from Kotlin code.
+     * E.g. `@Suppress("CheckReturnValue") public val encrypted: ImageVector` -> "encrypted"
+     */
+    fun extractVectorPropertyName(kotlinCode: String): String? {
+        val regex = Regex("""(?:public\s+)?val\s+(`?[a-zA-Z0-9_]+`?)\s*:\s*(?:[a-zA-Z0-9_.]+\.)?ImageVector""")
+        return regex.find(kotlinCode)?.groupValues?.get(1)?.removeSurrounding("`")
+    }
+
+    /**
+     * Prepares downloaded Kotlin Compose code by preserving it as is, ensuring the package declaration matches targetPackage.
+     */
+    fun prepareKotlinSource(originalContent: String, targetPackage: String): String {
+        if (targetPackage.isBlank()) return originalContent
+        val packageRegex = Regex("""^\s*package\s+[^\n]+""", RegexOption.MULTILINE)
+        return if (packageRegex.containsMatchIn(originalContent)) {
+            originalContent.replace(packageRegex, "package $targetPackage")
+        } else {
+            "package $targetPackage\n\n$originalContent"
+        }
+    }
 }
+

@@ -221,12 +221,20 @@ class MaterialSymbolPanel(private val project: Project) : JBPanel<MaterialSymbol
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Downloading Material Symbol", true) {
             private var content: String? = null
+            private var svgPreview: String? = null
             private var errorMsg: String? = null
 
             override fun run(indicator: ProgressIndicator) {
                 try {
                     indicator.text = "Fetching $url..."
-                    content = MaterialSymbolDownloaderService.downloadIconContent(url)
+                    val downloaded = MaterialSymbolDownloaderService.downloadIconContent(url)
+                    content = downloaded
+                    if (downloaded.isNotBlank() && !downloaded.trim().startsWith("<")) {
+                        try {
+                            svgPreview = MaterialSymbolDownloaderService.downloadSvgForIconName(rawName)
+                        } catch (_: Exception) {
+                        }
+                    }
                 } catch (e: Exception) {
                     errorMsg = e.message
                 }
@@ -240,7 +248,7 @@ class MaterialSymbolPanel(private val project: Project) : JBPanel<MaterialSymbol
                 if (downloaded != null && downloaded.isNotBlank()) {
                     downloadedContent = downloaded
                     lastDownloadedUrl = url
-                    previewComponent.updateSvg(downloaded)
+                    previewComponent.updateSvg(svgPreview ?: downloaded)
 
                     // Execute Export
                     val request = IconImportRequest(

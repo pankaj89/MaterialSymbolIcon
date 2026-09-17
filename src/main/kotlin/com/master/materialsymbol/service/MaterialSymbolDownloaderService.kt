@@ -2,10 +2,12 @@ package com.master.materialsymbol.service
 
 import com.master.materialsymbol.util.NamingHelper
 import java.io.BufferedReader
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URI
-import java.net.URL
+import java.util.zip.GZIPInputStream
+import java.util.zip.InflaterInputStream
 
 object MaterialSymbolDownloaderService {
 
@@ -51,7 +53,11 @@ object MaterialSymbolDownloaderService {
 
         try {
             val content = fetchUrl(trimmed)
-            if (content.isNotBlank() && (content.contains("<svg") || content.contains("ImageVector") || content.contains("package "))) {
+            if (content.isNotBlank() && (content.contains("<svg", ignoreCase = true) ||
+                        content.contains("<vector", ignoreCase = true) ||
+                        content.contains("ImageVector") ||
+                        content.contains("package "))
+            ) {
                 return content
             }
         } catch (_: Exception) {
@@ -61,25 +67,37 @@ object MaterialSymbolDownloaderService {
         // Try standard Google Fonts SVG endpoints if it was a Material Symbol
         val iconName = validation.detectedIconName
         if (iconName.isNotBlank()) {
-            val fallbackUrls = listOf(
-                "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/$iconName/default/24px.svg",
-                "https://fonts.gstatic.com/s/i/materialsymbolsoutlined/$iconName/default/24px.svg",
-                "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/$iconName/default/24px.svg",
-                "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolssharp/$iconName/default/24px.svg"
-            )
-            for (fallback in fallbackUrls) {
-                try {
-                    val content = fetchUrl(fallback)
-                    if (content.contains("<svg")) {
-                        return content
-                    }
-                } catch (_: Exception) {
-                    // Try next fallback
-                }
+            val svg = downloadSvgForIconName(iconName)
+            if (svg != null) {
+                return svg
             }
         }
 
         throw IllegalStateException("Failed to download valid SVG or Kotlin icon from $urlString")
+    }
+
+    /**
+     * Attempts to fetch fallback SVG for an icon name from Google Fonts endpoints.
+     */
+    fun downloadSvgForIconName(iconName: String): String? {
+        if (iconName.isBlank()) return null
+        val fallbackUrls = listOf(
+            "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/$iconName/default/24px.svg",
+            "https://fonts.gstatic.com/s/i/materialsymbolsoutlined/$iconName/default/24px.svg",
+            "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/$iconName/default/24px.svg",
+            "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolssharp/$iconName/default/24px.svg"
+        )
+        for (fallback in fallbackUrls) {
+            try {
+                val content = fetchUrl(fallback)
+                if (content.contains("<svg")) {
+                    return content
+                }
+            } catch (_: Exception) {
+                // Try next fallback
+            }
+        }
+        return null
     }
 
     private fun fetchUrl(urlString: String): String {
@@ -89,13 +107,22 @@ object MaterialSymbolDownloaderService {
         conn.readTimeout = 15000
         conn.instanceFollowRedirects = true
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android Studio MaterialSymbolIcon Plugin)")
+        conn.setRequestProperty("Accept-Encoding", "gzip, deflate")
 
         val responseCode = conn.responseCode
         if (responseCode !in 200..299) {
             throw IllegalStateException("Server returned HTTP $responseCode")
         }
 
-        val reader = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
+        val encoding = conn.contentEncoding?.lowercase()
+        val rawStream = conn.inputStream
+        val inStream: InputStream = when (encoding) {
+            "gzip" -> GZIPInputStream(rawStream)
+            "deflate" -> InflaterInputStream(rawStream)
+            else -> rawStream
+        }
+
+        val reader = BufferedReader(InputStreamReader(inStream, Charsets.UTF_8))
         val sb = StringBuilder()
         var line: String?
         while (reader.readLine().also { line = it } != null) {

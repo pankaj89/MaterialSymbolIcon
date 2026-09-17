@@ -10,6 +10,7 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.master.materialsymbol.util.ProjectStructureHelper
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
@@ -52,19 +53,30 @@ object AppIconsUpdaterService {
                         psiFile.add(newObj) as KtObjectDeclaration
                     }
 
+                val alias = if (composeIconName.endsWith("Icon")) "${composeIconName}Vector" else "${composeIconName}Icon"
+
                 // 2. Check if property already exists
                 val existingProp = targetObject.declarations.filterIsInstance<KtProperty>()
                     .find { it.name == composeIconName }
                 if (existingProp != null) {
+                    val getterExpr = existingProp.getter?.bodyExpression?.text?.trim()
+                    if (getterExpr == composeIconName) {
+                        // Fix recursive getter
+                        val fixedProperty = factory.createProperty("val $composeIconName: ImageVector get() = $alias")
+                        existingProp.replace(fixedProperty)
+                        ensureImports(psiFile, factory, vectorPackageName, vectorPropertyName, alias)
+                        CodeStyleManager.getInstance(project).reformat(targetObject)
+                        PsiDocumentManager.getInstance(project).commitAllDocuments()
+                    }
                     success = true // Already present
                     return@Runnable
                 }
 
                 // 3. Ensure imports exist
-                ensureImports(psiFile, factory, vectorPackageName, vectorPropertyName)
+                ensureImports(psiFile, factory, vectorPackageName, vectorPropertyName, alias)
 
                 // 4. Create and append the new property
-                val propertyCode = "val $composeIconName: ImageVector get() = $vectorPropertyName"
+                val propertyCode = "val $composeIconName: ImageVector get() = $alias"
                 val newProperty = factory.createProperty(propertyCode)
 
                 val body = targetObject.body ?: (targetObject.add(factory.createEmptyClassBody()) as org.jetbrains.kotlin.psi.KtClassBody)
@@ -117,12 +129,25 @@ object AppIconsUpdaterService {
         vectorPropertyName: String,
         vectorPackageName: String
     ): Pair<String, Boolean> {
+        val alias = if (composeIconName.endsWith("Icon")) "${composeIconName}Vector" else "${composeIconName}Icon"
+        val vectorFq = if (vectorPackageName.isNotBlank()) "$vectorPackageName.$vectorPropertyName" else vectorPropertyName
+        val vectorImport = "import $vectorFq as $alias"
         val propertyRegex = Regex("""val\s+$composeIconName\s*:\s*ImageVector""")
-        if (propertyRegex.containsMatchIn(currentText)) {
-            return Pair(currentText, false) // Already present
-        }
 
         var code = currentText
+
+        // Check if property is already present
+        if (propertyRegex.containsMatchIn(code)) {
+            // Check if it's the recursive bug: val Foo: ImageVector get() = Foo
+            val recursiveRegex = Regex("""val\s+$composeIconName\s*:\s*ImageVector\s+get\(\)\s*=\s*$composeIconName\b""")
+            if (recursiveRegex.containsMatchIn(code)) {
+                code = code.replace(recursiveRegex, "val $composeIconName: ImageVector get() = $alias")
+                code = ensureAliasedImportInCode(code, vectorFq, vectorImport)
+                return Pair(code, true)
+            }
+            return Pair(currentText, false) // Already present and not recursive
+        }
+
         val requiredImport = "import androidx.compose.ui.graphics.vector.ImageVector"
         if (!code.contains(requiredImport)) {
             val pkgMatch = Regex("""package\s+[^\n]+""").find(code)
@@ -133,32 +158,16 @@ object AppIconsUpdaterService {
             }
         }
 
-        if (vectorPackageName.isNotBlank()) {
-            val vectorImport = "import $vectorPackageName.$vectorPropertyName"
-            if (!code.contains(vectorImport) && !code.contains("import $vectorPackageName.*")) {
-                val lastImport = Regex("""import\s+[^\n]+""").findAll(code).lastOrNull()
-                code = if (lastImport != null) {
-                    code.replaceRange(lastImport.range.last + 1, lastImport.range.last + 1, "\n$vectorImport")
-                } else {
-                    val pkgMatch = Regex("""package\s+[^\n]+""").find(code)
-                    if (pkgMatch != null) {
-                        code.replaceRange(pkgMatch.range.last + 1, pkgMatch.range.last + 1, "\n\n$vectorImport")
-                    } else {
-                        "$vectorImport\n$code"
-                    }
-                }
-            }
-        }
+        code = ensureAliasedImportInCode(code, vectorFq, vectorImport)
 
+        val newPropCode = "    val $composeIconName: ImageVector get() = $alias\n"
         val objectRegex = Regex("""object\s+AppIcons[^{]*\{""", RegexOption.MULTILINE)
         val objectMatch = objectRegex.find(code)
             ?: Regex("""object\s+\w+[^{]*\{""", RegexOption.MULTILINE).find(code)
 
         if (objectMatch != null) {
-            val objStartIndex = objectMatch.range.first
             val closingBraceIndex = findMatchingClosingBrace(code, objectMatch.range.last)
             if (closingBraceIndex != -1) {
-                val newPropCode = "    val $composeIconName: ImageVector get() = $vectorPropertyName\n"
                 code = code.substring(0, closingBraceIndex) + newPropCode + code.substring(closingBraceIndex)
                 return Pair(code, true)
             }
@@ -168,11 +177,32 @@ object AppIconsUpdaterService {
         val newObjectCode = """
 
 object AppIcons {
-    val $composeIconName: ImageVector get() = $vectorPropertyName
+    val $composeIconName: ImageVector get() = $alias
 }
         """.trimIndent()
         code = "$code\n\n$newObjectCode"
         return Pair(code, true)
+    }
+
+    private fun ensureAliasedImportInCode(code: String, vectorFq: String, vectorImport: String): String {
+        if (code.contains(vectorImport)) return code
+
+        val unaliasedRegex = Regex("""import\s+${Regex.escape(vectorFq)}\s*(?:\r?\n|$)""")
+        if (unaliasedRegex.containsMatchIn(code)) {
+            return code.replace(unaliasedRegex, "$vectorImport\n")
+        }
+
+        val lastImport = Regex("""import\s+[^\n]+""").findAll(code).lastOrNull()
+        return if (lastImport != null) {
+            code.replaceRange(lastImport.range.last + 1, lastImport.range.last + 1, "\n$vectorImport")
+        } else {
+            val pkgMatch = Regex("""package\s+[^\n]+""").find(code)
+            if (pkgMatch != null) {
+                code.replaceRange(pkgMatch.range.last + 1, pkgMatch.range.last + 1, "\n\n$vectorImport")
+            } else {
+                "$vectorImport\n$code"
+            }
+        }
     }
 
     private fun findMatchingClosingBrace(text: String, openBraceIndex: Int): Int {
@@ -231,30 +261,52 @@ object AppIcons {
         psiFile: KtFile,
         factory: KtPsiFactory,
         vectorPackageName: String,
-        vectorPropertyName: String
+        vectorPropertyName: String,
+        alias: String
     ) {
-        val currentPackage = psiFile.packageFqName.asString()
-        val imports = psiFile.importDirectives.mapNotNull { it.importPath?.pathStr }
+        val imports = psiFile.importDirectives
 
         // Import ImageVector if not present
-        if (!imports.contains("androidx.compose.ui.graphics.vector.ImageVector") &&
-            !imports.contains("androidx.compose.ui.graphics.vector.*")
-        ) {
+        val hasImageVector = imports.any {
+            val path = it.importPath?.pathStr
+            path == "androidx.compose.ui.graphics.vector.ImageVector" || path == "androidx.compose.ui.graphics.vector.*"
+        }
+        if (!hasImageVector) {
             val importDirective = factory.createImportDirective(
                 ImportPath(FqName("androidx.compose.ui.graphics.vector.ImageVector"), false)
             )
-            psiFile.importList?.add(importDirective)
+            val importList = psiFile.importList
+            if (importList != null) {
+                importList.add(importDirective)
+            } else {
+                psiFile.add(importDirective)
+            }
         }
 
-        // Import vector property if in a different package
-        if (vectorPackageName.isNotBlank() && vectorPackageName != currentPackage) {
-            val fullVectorFq = "$vectorPackageName.$vectorPropertyName"
-            val wildcardFq = "$vectorPackageName.*"
-            if (!imports.contains(fullVectorFq) && !imports.contains(wildcardFq)) {
-                val importDirective = factory.createImportDirective(
-                    ImportPath(FqName(fullVectorFq), false)
-                )
-                psiFile.importList?.add(importDirective)
+        // Import vector property with alias
+        val fullVectorFq = if (vectorPackageName.isNotBlank()) "$vectorPackageName.$vectorPropertyName" else vectorPropertyName
+        val alreadyImported = imports.any {
+            it.importedFqName?.asString() == fullVectorFq && it.aliasName == alias
+        }
+
+        if (!alreadyImported) {
+            val unaliasedExisting = imports.find {
+                it.importedFqName?.asString() == fullVectorFq && it.aliasName == null
+            }
+
+            val importDirective = factory.createImportDirective(
+                ImportPath(FqName(fullVectorFq), false, Name.identifier(alias))
+            )
+
+            if (unaliasedExisting != null) {
+                unaliasedExisting.replace(importDirective)
+            } else {
+                val importList = psiFile.importList
+                if (importList != null) {
+                    importList.add(importDirective)
+                } else {
+                    psiFile.add(importDirective)
+                }
             }
         }
     }

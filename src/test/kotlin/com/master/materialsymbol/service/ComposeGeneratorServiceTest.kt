@@ -72,4 +72,63 @@ class ComposeGeneratorServiceTest {
         assertEquals("#FFFF0000", parsed.paths[0].fillColorHex)
         assertEquals("M0 0 H48 V48 H0 Z", parsed.paths[0].pathData)
     }
+
+    @Test
+    fun testIsKotlinComposeSource() {
+        val svg = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><path d="M0 0h24v24H0z"/></svg>"""
+        val vectorXml = """<vector xmlns:android="http://schemas.android.com/apk/res/android"><path android:pathData="M0 0"/></vector>"""
+        val composeKt = """
+            @Suppress("CheckReturnValue")
+            public val encrypted: ImageVector
+                get() {
+                    return ImageVector.Builder("encrypted", 24.dp, 24.dp, 24f, 24f).build()
+                }
+        """.trimIndent()
+
+        org.junit.Assert.assertFalse(ComposeGeneratorService.isKotlinComposeSource(svg))
+        org.junit.Assert.assertFalse(ComposeGeneratorService.isKotlinComposeSource(vectorXml))
+        assertTrue(ComposeGeneratorService.isKotlinComposeSource(composeKt))
+    }
+
+    @Test
+    fun testExtractVectorPropertyName() {
+        val code1 = """
+            @Suppress("CheckReturnValue")
+            public val encrypted: ImageVector
+                get() = ...
+        """.trimIndent()
+        assertEquals("encrypted", ComposeGeneratorService.extractVectorPropertyName(code1))
+
+        val code2 = """
+            public val Encrypted: ImageVector
+                get() = ...
+        """.trimIndent()
+        assertEquals("Encrypted", ComposeGeneratorService.extractVectorPropertyName(code2))
+
+        val code3 = """
+            val notes: ImageVector get() = ...
+        """.trimIndent()
+        assertEquals("notes", ComposeGeneratorService.extractVectorPropertyName(code3))
+    }
+
+    @Test
+    fun testPrepareKotlinSource() {
+        val originalNoPackage = """
+            @Suppress("CheckReturnValue")
+            public val encrypted: ImageVector
+        """.trimIndent()
+
+        val prepared = ComposeGeneratorService.prepareKotlinSource(originalNoPackage, "com.securevault.ui.theme.icons")
+        assertTrue(prepared.startsWith("package com.securevault.ui.theme.icons\n\n"))
+        assertTrue(prepared.contains("public val encrypted: ImageVector"))
+
+        val originalWithPackage = """
+            package androidx.compose.material.icons
+            
+            public val home: ImageVector
+        """.trimIndent()
+        val preparedReplaced = ComposeGeneratorService.prepareKotlinSource(originalWithPackage, "com.app.icons")
+        assertTrue(preparedReplaced.startsWith("package com.app.icons"))
+        org.junit.Assert.assertFalse(preparedReplaced.contains("androidx.compose.material.icons"))
+    }
 }

@@ -2,6 +2,14 @@
 
 # MaterialSymbolIcons Changelog
 
+## [1.0.2] - 2026-09-18
+
+### Fixed
+- Fixed recursive `StackOverflowError` in `AppIcons` by generating import aliases (`import ... as ...Icon`).
+- Added automatic repair of existing self-referential getters in `AppIcons.kt`.
+- Added GZIP and deflate decompression support in downloader service to reliably fetch Google Fonts `.kt` icon files without corrupting data or triggering unwanted SVG fallback.
+- Preserved downloaded Jetpack Compose `.kt` files verbatim with their original variable names (e.g. `encrypted`) and exact vector paths.
+
 ## [1.0.1] - 2026-09-16
 
 ### Changed
