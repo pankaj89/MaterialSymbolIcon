@@ -1,9 +1,10 @@
 package com.master.materialsymbol.ui.panels
 
 import com.intellij.icons.AllIcons
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
@@ -61,24 +62,22 @@ class SettingsPanel(private val project: Project) : JBPanel<SettingsPanel>(Borde
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
         formPanel.add(JBLabel("XML Drawables Path:"), gbc)
         gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0
-        drawablePathField.addBrowseFolderListener(
-            project,
-            FileChooserDescriptorFactory.createSingleFolderDescriptor()
-                .withTitle("Select XML Drawable Directory")
-                .withDescription("Usually app/src/main/res/drawable")
-        )
+        val drawableDescriptor = FileChooserDescriptor(false, true, false, false, false, false).apply {
+            title = "Select XML Drawable Directory"
+            description = "Usually app/src/main/res/drawable"
+        }
+        drawablePathField.addBrowseFolderListener(TextBrowseFolderListener(drawableDescriptor, project))
         formPanel.add(drawablePathField, gbc)
 
         // Row 2: Compose ImageVector destination path
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0
         formPanel.add(JBLabel("Compose Vectors Path:"), gbc)
         gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 1.0
-        composePathField.addBrowseFolderListener(
-            project,
-            FileChooserDescriptorFactory.createSingleFolderDescriptor()
-                .withTitle("Select Compose Icons Directory")
-                .withDescription("Usually .../ui/theme/icons")
-        )
+        val composeDescriptor = FileChooserDescriptor(false, true, false, false, false, false).apply {
+            title = "Select Compose Icons Directory"
+            description = "Usually .../ui/theme/icons"
+        }
+        composePathField.addBrowseFolderListener(TextBrowseFolderListener(composeDescriptor, project))
         formPanel.add(composePathField, gbc)
 
         // Row 3: Compose Package Name
@@ -92,12 +91,12 @@ class SettingsPanel(private val project: Project) : JBPanel<SettingsPanel>(Borde
         gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0
         formPanel.add(JBLabel("AppIcons.kt Registry:"), gbc)
         gbc.gridx = 1; gbc.gridy = 4; gbc.weightx = 1.0
-        appIconsPathField.addBrowseFolderListener(
-            project,
-            FileChooserDescriptorFactory.createSingleFileDescriptor("kt")
-                .withTitle("Select AppIcons.kt File")
-                .withDescription("Central registry file for icons")
-        )
+        val appIconsDescriptor = FileChooserDescriptor(true, false, false, false, false, false).apply {
+            title = "Select AppIcons.kt File"
+            description = "Central registry file for icons"
+            withFileFilter { file -> file.extension.equals("kt", ignoreCase = true) }
+        }
+        appIconsPathField.addBrowseFolderListener(TextBrowseFolderListener(appIconsDescriptor, project))
         formPanel.add(appIconsPathField, gbc)
 
         // Row 5: Auto-append toggle

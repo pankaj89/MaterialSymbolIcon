@@ -1,9 +1,10 @@
 package com.master.materialsymbol.ui.panels
 
 import com.intellij.icons.AllIcons
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
@@ -74,12 +75,12 @@ class SvgImagePanel(private val project: Project) : JBPanel<SvgImagePanel>(Borde
         gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
         formPanel.add(JBLabel("SVG File:"), gbc)
         gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0
-        filePicker.addBrowseFolderListener(
-            project,
-            FileChooserDescriptorFactory.createSingleFileDescriptor("svg")
-                .withTitle("Select SVG File")
-                .withDescription("Choose an SVG image to convert")
-        )
+        val svgDescriptor = FileChooserDescriptor(true, false, false, false, false, false).apply {
+            title = "Select SVG File"
+            description = "Choose an SVG image to convert"
+            withFileFilter { file -> file.extension.equals("svg", ignoreCase = true) }
+        }
+        filePicker.addBrowseFolderListener(TextBrowseFolderListener(svgDescriptor, project))
         formPanel.add(filePicker, gbc)
 
         // Row 1: Drop zone

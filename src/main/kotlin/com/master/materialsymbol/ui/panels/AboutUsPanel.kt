@@ -46,7 +46,7 @@ class AboutUsPanel : JBPanel<AboutUsPanel>(BorderLayout()) {
                 add(JBLabel("Material Symbol & Icon Importer").apply {
                     font = font.deriveFont(Font.BOLD, 18f)
                 })
-                add(JBLabel("v1.0.2").apply {
+                add(JBLabel("v1.0.3").apply {
                     font = font.deriveFont(Font.PLAIN, 12f)
                     foreground = JBColor.GRAY
                     border = JBUI.Borders.compound(

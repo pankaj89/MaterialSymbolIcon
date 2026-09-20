@@ -2,6 +2,13 @@
 
 # MaterialSymbolIcons Changelog
 
+## [1.0.3] - 2026-09-20
+
+### Changed
+- Set minimum supported IDE version to 2025.3 (branch 253) for Android Studio Panda and newer.
+- Migrated file chooser integration to modern `FileChooserDescriptor` and `TextBrowseFolderListener`.
+- Replaced internal border color references with standard theme-aware borders.
+
 ## [1.0.2] - 2026-09-18
 
 ### Fixed

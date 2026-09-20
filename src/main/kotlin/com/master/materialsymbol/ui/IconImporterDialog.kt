@@ -3,6 +3,7 @@ package com.master.materialsymbol.ui
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.ui.JBColor
 import com.intellij.ui.JBSplitter
 import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.JBList
@@ -71,7 +72,7 @@ class IconImporterDialog(private val project: Project) : DialogWrapper(project, 
             setHonorComponentsMinimumSize(true)
             firstComponent = JBScrollPane(navList).apply {
                 minimumSize = Dimension(JBUI.scale(210), 0)
-                border = JBUI.Borders.customLine(JBUI.CurrentTheme.CustomFrameDecorations.separatorForeground(), 0, 0, 0, 1)
+                border = JBUI.Borders.customLine(JBColor.border(), 0, 0, 0, 1)
             }
             secondComponent = cardsContainer
         }

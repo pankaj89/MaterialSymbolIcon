@@ -29,7 +29,7 @@ intellijPlatform {
     pluginConfiguration {
         version = providers.gradleProperty("version")
         ideaVersion {
-            sinceBuild = "242"
+            sinceBuild = "253"
             untilBuild = provider { null }
         }
     }
